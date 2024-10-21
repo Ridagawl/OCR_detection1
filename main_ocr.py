@@ -7,7 +7,7 @@ import re
 # Chemin vers l'exécutable de Tesseract
 pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
 
-video_path = '/Users/ridha/ocr/godar.mp4'
+video_path = '/Users/ridha/ocr/godar1_1min.mp4'
 cap = cv2.VideoCapture(video_path)
 blocc=10
 def nettoyer_sous_titre(sous_titre):
@@ -355,23 +355,25 @@ def generer_segments_sous_titres(fichier_ocr, fichier_comparaison):
 
 t,s=generer_segments_sous_titres("/Users/ridha/ocr/ocr_dar/OUTPUT1.srt","/Users/ridha/ocr/ocr_dar/comparaison_resultats1.json")
 
-def extraire_time_codes(segments_sous_titres, sous_titres_reperes):
+def extraire_time_codes(segments_sous_titres, sous_titres_reperes, blocc=10):
     """Comparer les sous-titres repérés avec les blocs de sous-titres et extraire les time codes."""
     resultats = []  # Liste pour stocker les résultats
     sous_titres_uniques = set()  # Ensemble pour vérifier les doublons
+    reperes_traites = set()  # Ensemble pour garder une trace des sous-titres repérés traités
 
-    # Boucler à travers chaque sous-titre repéré
-    for sous_titre_repere in sous_titres_reperes:
-        debut_time_code = None
-        fin_time_code = None
+    # Boucler à travers les segments de sous-titres par tranche de blocc
+    for i in range(0, len(segments_sous_titres), blocc):
+        # Récupérer le bloc de sous-titres
+        bloc = segments_sous_titres[i:i + blocc]
 
-        # Boucler à travers les segments de sous-titres par tranche de blocc = 10
-        for i in range(0, len(segments_sous_titres), blocc):
-            # Récupérer le bloc de 10 sous-titres
-            bloc = segments_sous_titres[i:i + blocc]
-
-            # Variable pour suivre si le sous-titre repéré a été trouvé dans le bloc
-            trouve = False
+        # Boucler à travers chaque sous-titre repéré
+        for sous_titre_repere in sous_titres_reperes:
+            # Si le sous-titre repéré a déjà été traité, passer à la prochaine chaîne
+            if sous_titre_repere in reperes_traites:
+                continue
+            
+            debut_time_code = None
+            fin_time_code = None
 
             # Comparer le sous-titre repéré avec chaque sous-titre du bloc
             for time_code, sous_titre in bloc:
@@ -382,17 +384,22 @@ def extraire_time_codes(segments_sous_titres, sous_titres_reperes):
                         debut_time_code = time_code
                     # Toujours mettre à jour le time code de fin
                     fin_time_code = time_code
-                    trouve = True
 
-            # Si le sous-titre repéré a été trouvé au moins une fois
-            if trouve and debut_time_code is not None and fin_time_code is not None:
+            # Si le sous-titre repéré a été trouvé dans le bloc
+            if debut_time_code is not None and fin_time_code is not None:
                 # Créer une clé unique pour vérifier les doublons
                 cle = (sous_titre_repere, debut_time_code, fin_time_code)
                 if cle not in sous_titres_uniques:
                     sous_titres_uniques.add(cle)  # Ajouter à l'ensemble
                     # Ajouter les résultats (sous-titre repéré, time code de début et time code de fin)
                     resultats.append((sous_titre_repere, debut_time_code, fin_time_code))
-            debut_time_code = fin_time_code
+                # Marquer ce sous-titre repère comme traité
+                reperes_traites.add(sous_titre_repere)
+                break  # Sortir de la boucle pour ne pas traiter d'autres repères dans ce bloc
+
+        # Si tous les repères ont été traités, sortir de la boucle
+        if len(reperes_traites) == len(sous_titres_reperes):
+            break
 
     return resultats
 
