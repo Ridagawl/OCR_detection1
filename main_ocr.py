@@ -7,22 +7,20 @@ import re
 # Chemin vers l'exécutable de Tesseract
 pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
 
-video_path = '/Users/ridha/ocr/godar1_1min.mp4'
+video_path = 'ocr_dar/GodarSubS01E2_6.mp4'
 cap = cv2.VideoCapture(video_path)
-blocc=10
+blocc=30
 def nettoyer_sous_titre(sous_titre):
     # Si l'entrée n'est pas une chaîne de caractères, la convertir en chaîne
     sous_titre = str(sous_titre) if not isinstance(sous_titre, str) else sous_titre
-
-    # Appliquer la suppression des caractères spéciaux en début de chaîne
-    sous_titre = re.sub(r'^[^a-zA-Z0-9\u0600-\u06FF]+', '', sous_titre)
-
-    # Vérifier s'il y a des points à la fin et les déplacer au début
     while sous_titre.endswith('.'):
         # Retirer un point de la fin
         sous_titre = sous_titre[:-1]
         # Ajouter un point au début
         sous_titre = '.' + sous_titre
+
+    # Appliquer la suppression des caractères spéciaux en fin de chaîne comme c'est l'arabe la fin c'est le début
+    sous_titre = re.sub(r'[^a-zA-Z0-9\u0600-\u06FF]+$', '', sous_titre)
 
     return sous_titre
 
@@ -44,22 +42,32 @@ try:
         if not ret:
             break
         if frame_number :  # Traitement toutes les frames 
-            
+            c,d=640, 632
 
-            # Extraction de la région d'intérêt (ROI) avec des paramètres par défaut
-            roi = frame[360:480, 250:650]
+            e,f=640, 624
+            x, y, w, h = 400, 633, 480, 58
+
+            threshold1=250
+
+            b, g, r = frame[f, e]
+            ba, ga, ra = frame[d, c]
+
+            e1,e2,e3=abs(ba-b),abs(ga-g),abs(ra-r)
+            if e1 < threshold1 and e2 < threshold1 and e3 < threshold1:
+               y,h = 575,116  # Region of interest
+                            
+            roi = frame[y:y+h, x:x+w]
+            #roi = frame[360:480, 250:650]
 
             # Vérification si la ROI est vide
             if roi.size == 0:
                 print(f"Erreur : ROI vide pour la frame {frame_number}.")
-                continue  # Passer à la prochaine frame
 
             # Conversion en PIL Image pour traitement OCR
             try:
                 img = Image.fromarray(cv2.cvtColor(roi, cv2.COLOR_BGR2RGB))
             except cv2.error as e:
                 print(f"Erreur de conversion de l'image : {e}")
-                continue  # Passer à la prochaine frame
 
             # Appliquer le processus d'amélioration sur la ROI
             enhancer = ImageEnhance.Contrast(img)
@@ -73,9 +81,9 @@ try:
             img = img.filter(ImageFilter.GaussianBlur(radius=1))
 
             # Affichage de l'image traitée avant OCR
-            #img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            #cv2.imshow('Image pour OCR', img_cv)  # Affiche l'image
-            #cv2.waitKey(100)  # Attendre 100 ms pour voir l'image
+            img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            cv2.imshow('Image pour OCR', img_cv)  # Affiche l'image
+            cv2.waitKey(50)  # Attendre 100 ms pour voir l'image
 
             # Extraction du texte avec pytesseract
             extracted_text = nettoyer_sous_titre(pytesseract.image_to_string(img, lang='ara').strip())
@@ -90,7 +98,7 @@ try:
             if len(extracted_text)> 2 :  # Si du texte a été extrait
                 subtitles.append(f"{extracted_text}\n\n")  # Ajouter le texte extrait
             else:  # Aucun texte extrait
-                subtitles.append("Aucun sous-titre n'a été extrait\n\n\n")  # Ajouter le message de défaut
+                subtitles.append("Aucun sous-titre n'a été extrait\n\n")  # Ajouter le message de défaut
 
             subtitle_index += 1  # Incrémenter le numéro de sous-titre
 
@@ -98,6 +106,7 @@ try:
             start_time = end_time
 
         frame_number += 1  # Incrémenter le numéro de frame
+        print(frame_number)
 
 finally:
     cap.release()
@@ -123,10 +132,10 @@ def lire_fichier(fichier):
             time_codes.append(time_code)
 
             # Nettoyer chaque ligne du sous-titre individuellement
-            sous_titres_lignes_nettoyes = [nettoyer_sous_titre(ligne) for ligne in lignes[2:]]  # Appliquer nettoyage
-            
+            sous_titres_lignes_nettoyes = [nettoyer_sous_titre(ligne) for ligne in lignes[2:4]]  # Appliquer nettoyage
+
             # Joindre les lignes nettoyées en ajoutant ' /' entre elles
-            sous_titre = ' /'.join(sous_titres_lignes_nettoyes).strip()# Joindre les lignes de sous-titre en insérant "/n" à la fin de chaque ligne sauf la dernière
+            sous_titre = '/'.join(sous_titres_lignes_nettoyes).strip()# Joindre les lignes de sous-titre en insérant " /" à la fin de chaque ligne sauf la dernière
 
             sous_titres.append(sous_titre)
 
@@ -219,14 +228,14 @@ def comparer_sous_titres(sous_titres_repetes_fichier, ocr_fichier):
     with open(sous_titres_repetes_fichier, 'r', encoding='utf-8') as f:
         sous_titres_repetes = json.load(f)
 
-    # Lire tous les sous-titres de ocr_n1.txt
+    # Lire tous les sous-titres de OUTPUT1.srt
     sous_titres_ocr,t = lire_fichier(ocr_fichier)
 
     # Créer un dictionnaire pour stocker les résultats de comparaison
     resultats_comparaison = {}
     # Traiter chaque sous-titre répété
     for i, (bloc_num, sous_titre_repere) in enumerate(sous_titres_repetes.items()):
-        # Prendre les blocs sous-titres correspondant dans ocr_n1.txt
+        # Prendre les blocs sous-titres correspondant dans OUTPUT1.srt
         debut_bloc = i * blocc
         fin_bloc = debut_bloc + blocc
         sous_titres_bloc = sous_titres_ocr[debut_bloc:fin_bloc]
@@ -257,7 +266,7 @@ def comparer_sous_titres(sous_titres_repetes_fichier, ocr_fichier):
                 sous_titre_repere_modifie = chaine_triple
                 chaine, compteur = chaine_similaire(sous_titre_repere, sous_titre_comparaison)
                 resultats_comparaison[bloc_num]["Comparaisons"].append({
-                    "Sous-titre": sous_titre_repere_modifie,
+                    "Sous-titre": sous_titre_comparaison,
                     "Chaîne similaire": chaine,
                     "Nombre de caractères similaires": compteur
                 })
@@ -274,10 +283,8 @@ def comparer_sous_titres(sous_titres_repetes_fichier, ocr_fichier):
     with open(fichier_resultat, 'w', encoding='utf-8') as f_resultat:
         json.dump(resultats_comparaison, f_resultat, ensure_ascii=False, indent=4)
 
-
 comparer_sous_titres("/Users/ridha/ocr/ocr_dar/OUTPUT2.srt","/Users/ridha/ocr/ocr_dar/OUTPUT1.srt")
 
-import json
 
 def extraire_chaine(fichier_json):
     # Lire le fichier JSON contenant les résultats de comparaison
@@ -307,7 +314,6 @@ def extraire_chaine(fichier_json):
 # Exécution de la fonction
 chaines_similaires = extraire_chaine("/Users/ridha/ocr/ocr_dar/comparaison_resultats.json")
 list=chaines_similaires
-
 def ajouter_bonne_chaine(fichier_json, liste_chaînes, fichier_sortie):
     # Charger l'ancien fichier JSON
     with open(fichier_json, 'r', encoding='utf-8') as f:
@@ -355,7 +361,7 @@ def generer_segments_sous_titres(fichier_ocr, fichier_comparaison):
 
 t,s=generer_segments_sous_titres("/Users/ridha/ocr/ocr_dar/OUTPUT1.srt","/Users/ridha/ocr/ocr_dar/comparaison_resultats1.json")
 
-def extraire_time_codes(segments_sous_titres, sous_titres_reperes, blocc=10):
+def extraire_time_codes(segments_sous_titres, sous_titres_reperes):
     """Comparer les sous-titres repérés avec les blocs de sous-titres et extraire les time codes."""
     resultats = []  # Liste pour stocker les résultats
     sous_titres_uniques = set()  # Ensemble pour vérifier les doublons
@@ -403,7 +409,7 @@ def extraire_time_codes(segments_sous_titres, sous_titres_reperes, blocc=10):
 
     return resultats
 
-resultats = extraire_time_codes(t, s)
+resultats = extraire_time_codes(t,list)
 print(resultats)
 
 resultats_final = [
@@ -575,3 +581,52 @@ def traiter_final_txt(fichier_entree, fichier_sortie="/Users/ridha/ocr/ocr_dar/O
         f.write(contenu_final)
 
 traiter_final_txt("/Users/ridha/ocr/ocr_dar/OUTPUT5.srt")
+
+def lire_et_filtrer_fichier_srt(nom_fichier, fichier_sortie):
+    """Lit un fichier SRT, filtre les sous-titres ayant moins de deux caractères, et écrit le résultat dans un nouveau fichier avec de nouveaux index."""
+    with open(nom_fichier, 'r', encoding='utf-8') as f:
+        contenu = f.read()
+
+    # Séparer les blocs de sous-titres
+    blocs = contenu.strip().split('\n\n')
+    sous_titres_valides = []
+
+    for bloc in blocs:
+        lignes = bloc.strip().split('\n')
+        if len(lignes) >= 3:  # S'assurer qu'il y a au moins 3 lignes
+            time_code = lignes[1]
+            sous_titre = '/'.join(lignes[2:]).strip()  # Joindre les lignes de sous-titre
+
+            # Vérifier si la longueur du sous-titre est inférieure à 2 caractères
+            if len(sous_titre) <= 2:
+                continue  # Ignorer ce bloc
+
+            # Ajouter le bloc valide à la liste sans l'index
+            sous_titres_valides.append((time_code, sous_titre))
+
+    # Écrire les sous-titres filtrés dans le fichier de sortie avec de nouveaux index
+    with open(fichier_sortie, 'w', encoding='utf-8') as f:
+        for index, (temps, texte) in enumerate(sous_titres_valides, start=1):
+            f.write(f"{index}\n")
+            f.write(f"{temps}\n")
+            f.write(f"{texte}\n\n")  # Écrire le texte final
+
+# Appel de la fonction
+lire_et_filtrer_fichier_srt("/Users/ridha/ocr/ocr_dar/OUTPUT6.srt", "/Users/ridha/ocr/ocr_dar/OUTPUT7.srt")
+
+def traiter_final_sous_titres(fichier_entree, fichier_sortie):
+    """Traite le fichier SRT en remplaçant '/' par des sauts de ligne."""
+    
+    # Lire le fichier SRT d'entrée
+    with open(fichier_entree, 'r', encoding='utf-8') as f:
+        contenu = f.read()
+
+    # Remplacer '/' par '\n' dans le contenu
+    contenu_final = contenu.replace('/', '\n')  
+
+    # Écrire le contenu traité dans le fichier de sortie
+    with open(fichier_sortie, 'w', encoding='utf-8') as f:
+        f.write(contenu_final)
+
+    print(f"Le fichier {fichier_sortie} a été traité pour remplacer '/' par des sauts de ligne.")
+traiter_final_sous_titres("/Users/ridha/ocr/ocr_dar/OUTPUT7.srt","/Users/ridha/ocr/ocr_dar/OUTPUT7.srt")
