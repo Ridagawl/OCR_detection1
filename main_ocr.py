@@ -499,7 +499,7 @@ def lire_et_filtrer_fichier_srt(nom_fichier, fichier_sortie):
             time_code = lignes[1]
             sous_titre = ' /'.join(lignes[2:]).strip()  # Joindre les lignes de sous-titre
             # Vérifier si la longueur du sous-titre est inférieure à 2 caractères
-            if len(sous_titre) <= 3 or any(char in sous_titre for char in '*,-<>#«َّ_:“"')or any(char.isdigit() for char in sous_titre) or any(len(mot) < 2 for mot in sous_titre.split()):
+            if len(sous_titre) <= 3 or any(char in sous_titre for char in '*,<>#«َّ_:“"')or any(char.isdigit() for char in sous_titre) or any(len(mot) < 2 for mot in sous_titre.split()):
                 continue  # Ignorer ce bloc
             # Ajouter le bloc valide à la liste sans l'index
             sous_titres_valides.append((time_code, sous_titre))
