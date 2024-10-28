@@ -25,7 +25,7 @@ def nettoyer_sous_titre(sous_titre):
 def extract_subtitles(video_path, output_path, threshold1=250, contrast_factor=2.0, text_lang='ara'):
     #création d'objet cap pour acceder au frame de la vidéo 
     cap = cv2.VideoCapture(video_path)
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    fps = 30
     subtitles = []  # Liste pour stocker les sous-titres
     frame_number = 0
     start_time = 0
@@ -67,9 +67,10 @@ def extract_subtitles(video_path, output_path, threshold1=250, contrast_factor=2
 
             # Extraction du texte avec pytesseract et le nettoyer 
             extracted_text = nettoyer_sous_titre(pytesseract.image_to_string(img, lang=text_lang))
-
+  
             # Calcul du timecode
             end_time = frame_number / fps
+            
             subtitles.append(f"{subtitle_index}\n")
             subtitles.append(f"{int(start_time // 3600):02}:{int((start_time % 3600) // 60):02}:{int(start_time % 60):02},{int((start_time % 1) * 1000):03} --> {int(end_time // 3600):02}:{int((end_time % 3600) // 60):02}:{int(end_time % 60):02},{int((end_time % 1) * 1000):03}\n")
 
@@ -191,7 +192,7 @@ def analyser_repetitions(nouveau_fichier, fichier_sortie):
                     if len(sous_titre) >= 3:  # Vérifier si le mot a au moins 3 caractères
                             # Parcourir les lettres du mot en sens inverse pour trouver 3 lettres successives
                         if sous_titre[0]!=" " and sous_titre[1]!=" " and sous_titre[2]!=" ":
-                            if idx + 2 < len(sous_titres_bloc) and sous_titre == sous_titres_bloc[idx + 1]== sous_titres_bloc[idx + 2]:
+                            if idx + 1 < len(sous_titres_bloc) and sous_titre == sous_titres_bloc[idx + 1]:
                                 chaine_triple = sous_titre
                                 break
                         if chaine_triple:  # Sortir de la boucle si trouvé
@@ -470,7 +471,7 @@ def fusionner_sous_titres(sous_titres):
             temps_debut, temps_fin = temps1.split(' --> ')
 
     # Ajouter le dernier sous-titre avec l'index mis à jour
-    resultats.append((index_compteur, f"{temps_debut} --> {temps_fin}", texte_reference if similarite >= 0.40 else texte1))
+    resultats.append((index_compteur, f"{temps_debut} --> {temps_fin}", texte_reference if similarite >= 0.50 else texte1))
     return resultats
 
 def ecrire_fichier_srt(sous_titres, nom_fichier):
@@ -528,7 +529,7 @@ def traiter_final_sous_titres(fichier_entree, fichier_sortie):
 
 
 # Appel des fonctions
-extract_subtitles('/Users/ridha/ocr/ocr_dar/GodarSubS01E1_6.mp4', '/Users/ridha/ocr/ocr_dar/OUTPUT.srt')
+extract_subtitles('/Users/ridha/ocr/ocr_dar/GodarSubS01E2_6.mp4', '/Users/ridha/ocr/ocr_dar/OUTPUT.srt')
 s,t=lire_fichier("/Users/ridha/ocr/ocr_dar/OUTPUT.srt")
 a="/Users/ridha/ocr/ocr_dar/OUTPUT1.srt"
 ecrire_fichier(a,s,t)
@@ -555,3 +556,4 @@ traiter_final_sous_titres("/Users/ridha/ocr/ocr_dar/OUTPUT6.srt","/Users/ridha/o
 b=lire_fichier_srt1("/Users/ridha/ocr/ocr_dar/OUTPUT6.srt")
 s_b=fusionner_sous_titres(b)
 ecrire_fichier_srt(s_b, "/Users/ridha/ocr/ocr_dar/OUTPUT7.srt")
+
